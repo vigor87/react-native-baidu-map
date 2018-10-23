@@ -6,7 +6,9 @@ import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
+import com.baidu.location.LocationClientOption.LocationMode;
 import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.search.core.PoiInfo;
 import com.baidu.mapapi.search.core.SearchResult;
 import com.baidu.mapapi.search.geocode.GeoCodeOption;
 import com.baidu.mapapi.search.geocode.GeoCodeResult;
@@ -15,10 +17,14 @@ import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
 import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
 import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
 import com.baidu.mapapi.utils.CoordinateConverter;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+
+import java.util.List;
 
 /**
  * Created by lovebing on 2016/10/28.
@@ -38,9 +44,9 @@ public class GeolocationModule extends BaseModule
         return "BaiduGeolocationModule";
     }
 
-
     private void initLocationClient() {
         LocationClientOption option = new LocationClientOption();
+        option.setLocationMode(LocationMode.Hight_Accuracy);
         option.setCoorType("bd09ll");
         option.setIsNeedAddress(true);
         option.setIsNeedAltitude(true);
@@ -76,6 +82,16 @@ public class GeolocationModule extends BaseModule
         LatLng desLatLng = converter.convert();
         return desLatLng;
 
+    }
+
+    @ReactMethod
+    public void convertGPSCoor(double lat, double lng, Promise promise) {
+        Log.i("convertGPSCoor", "convertGPSCoor");
+        LatLng latLng = getBaiduCoorFromGPSCoor(new LatLng(lat, lng));
+        WritableMap map = Arguments.createMap();
+        map.putDouble("latitude", latLng.latitude);
+        map.putDouble("longitude", latLng.longitude);
+        promise.resolve(map);
     }
 
     @ReactMethod
@@ -155,6 +171,19 @@ public class GeolocationModule extends BaseModule
             params.putString("district", addressComponent.district);
             params.putString("street", addressComponent.street);
             params.putString("streetNumber", addressComponent.streetNumber);
+
+            WritableArray list = Arguments.createArray();
+            List<PoiInfo> poiList = result.getPoiList();
+            for (PoiInfo info: poiList) {
+                WritableMap attr = Arguments.createMap();
+                attr.putString("name", info.name);
+                attr.putString("address", info.address);
+                attr.putString("city", info.city);
+                attr.putDouble("latitude", info.location.latitude);
+                attr.putDouble("longitude", info.location.longitude);
+                list.pushMap(attr);
+            }
+            params.putArray("poiList", list);
         }
         sendEvent("onGetReverseGeoCodeResult", params);
     }
